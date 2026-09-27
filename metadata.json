@@ -1,0 +1,6 @@
+{
+  "name": "VaaniMitra",
+  "description": "Offline AI teaching bridge helping Hindi-speaking teachers deliver NIPUN Bharat-aligned mother-tongue lessons in Santhali, Mundari, Ho, and Kurukh to primary school children in Jharkhand.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
