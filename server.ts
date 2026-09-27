@@ -27,6 +27,33 @@ function getGenAIClient() {
   });
 }
 
+async function generateWithFallback(ai: ReturnType<typeof getGenAIClient>, options: {
+  contents: any;
+  config: any;
+}) {
+  const models = [
+    "gemini-3.5-flash-lite",
+    "gemini-3.5-flash",
+    "gemini-3.8-flash",
+    "gemini-flash-latest",
+  ];
+  let lastError: any;
+  for (const model of models) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: options.contents,
+        config: options.config,
+      });
+      return { response, model };
+    } catch (err) {
+      lastError = err;
+      console.warn(`Model ${model} warning:`, (err as any)?.message?.slice(0, 150) || err);
+    }
+  }
+  throw lastError;
+}
+
 app.post("/api/translate", async (req, res) => {
   const startTime = Date.now();
   const {
@@ -164,20 +191,10 @@ Requirements:
       },
     };
 
-    let response;
-    try {
-      response = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
-        contents: contentsPayload,
-        config: schemaConfig,
-      });
-    } catch {
-      response = await ai.models.generateContent({
-        model: "gemini-flash-latest",
-        contents: contentsPayload,
-        config: schemaConfig,
-      });
-    }
+    const { response, model: usedModel } = await generateWithFallback(ai, {
+      contents: contentsPayload,
+      config: schemaConfig,
+    });
 
     const elapsedSeconds = ((Date.now() - startTime) / 1000).toFixed(1);
     const rawText = response.text || "{}";
@@ -186,7 +203,7 @@ Requirements:
     return res.json({
       ...parsed,
       durationSeconds: elapsedSeconds,
-      modelUsed: "IndicTrans2-4bit (Gemini Flash Engine)",
+      modelUsed: `IndicTrans2-4bit (${usedModel})`,
     });
   } catch (error) {
     console.warn("Using built-in tribal linguistic fallback:", error);
@@ -240,8 +257,7 @@ Requirements:
 2. Generate 4 vocabulary flashcard word-pairs ("flashcards") with "iconKey" chosen from: ["water", "tree", "book", "sun", "bird", "hand", "house", "river", "number", "food", "family", "earth", "flower", "animal", "school", "star"].
 3. Generate a 5-line bilingual folktale/mini-story ("storyLines") set in a Jharkhand village (mentioning local elements like Sal trees, hill streams, village courtyard, or local birds) that teaches "${topic}". Each line must have "lineNumber", "hindiLine", "tribalLine" (Roman + Devanagari phonetic for teacher), and "tribalNative" (native script).`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
+    const { response } = await generateWithFallback(ai, {
       contents: prompt,
       config: {
         responseMimeType: "application/json",
